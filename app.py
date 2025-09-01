@@ -1,8 +1,9 @@
 from fastapi import FastAPI,HTTPException,Depends
 from db import engine,Base,get_db
 import crud
-Base.metadata.create_all(bind=engine)
 from schemas import UserCreate,UserUpdate
+
+Base.metadata.create_all(bind=engine)
 
 app=FastAPI()   
 
@@ -72,3 +73,27 @@ def get_transactions(user_id: int, db=Depends(get_db)):
     if transactions:
         return transactions
     raise HTTPException(status_code=404, detail="No transactions found")
+
+@app.get("/transactions/detail/{transaction_id}")
+def get_transaction(transaction_id: int, db=Depends(get_db)):
+    transaction = crud.fetch_transaction(db, transaction_id)
+    if transaction:
+        return transaction
+    raise HTTPException(status_code=404, detail="Transaction not found")
+
+@app.post("/transfer")
+def transfer_funds(user_id: int, recipient_id: int, amount: float, description: str, db=Depends(get_db)):
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    user = crud.fetch_user(db, user_id)
+    recipient = crud.fetch_user(db, recipient_id)
+    if user and recipient:
+        return crud.transfer_funds(db, user, recipient, amount, description)
+    raise HTTPException(status_code=404, detail="User or recipient not found")
+
+@app.post("/transfer/{transfer_id}")
+def get_transfer(transfer_id: int, db=Depends(get_db)):
+    transaction = crud.fetch_transaction(db, transfer_id)
+    if transaction:
+        return transaction
+    raise HTTPException(status_code=404, detail="Transaction not found")
