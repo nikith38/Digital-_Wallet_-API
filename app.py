@@ -36,7 +36,7 @@ def create_user(user: UserCreate, db=Depends(get_db)):
 def update_user(user_id: int, user: UserUpdate, db=Depends(get_db)):
     db_user = crud.fetch_user(db, user_id)
     if db_user:
-       crud.update_user(db, db_user,user)
+       db_user=crud.update_user(db, db_user,user)
        return db_user
     raise HTTPException(status_code=404, detail="User not found")
 
@@ -97,3 +97,4 @@ def get_transfer(transfer_id: int, db=Depends(get_db)):
     if transaction:
         return transaction
     raise HTTPException(status_code=404, detail="Transaction not found")
+

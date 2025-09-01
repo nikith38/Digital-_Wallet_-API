@@ -18,17 +18,23 @@ def update_user(db:Session,db_user:Users,user):
     db_user.phone_number = user.phone_number
     db.commit()
     db.refresh(db_user)
-    return db_user
+    return {
+        "username":db_user.username,
+        "phone_number": db_user.phone_number
+    }
 
 def add_money(db: Session, user: Users, description: str, amount: float):
     balance = user.balance + amount
     user.balance =balance
     db.commit()
     db.refresh(user)
-    create_transaction(db, user, description, amount)
-    return {"user_id": user.id,
+    new_transaction=create_transaction(db, user, description, amount)
+    new_transaction.transaction_type="CREDIT"
+    return {"transaction_id": new_transaction.id,
+            "user_id": new_transaction.user_id,
+            "amount": new_transaction.amount,
             "new_balance": user.balance,
-            "last_updated": user.updated_at}
+            "transaction_type": new_transaction.transaction_type}
 
 def withdraw(db: Session, user: Users, description: str, amount: float):
     if user.balance < amount:
