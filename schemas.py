@@ -30,3 +30,9 @@ class TransactionCreate(BaseModel):
     user_id: int
     description: str
     amount: float
+
+class TransactionTransfer(BaseModel):
+    user_id: int
+    recipient_id: int
+    amount: float
+    description: str

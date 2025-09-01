@@ -1,7 +1,7 @@
 from schemas import UserCreate
 from sqlalchemy.orm import Session
 from models import Users,Transactions
-from schemas import TransactionCreate,Transaction
+from schemas import TransactionCreate,Transaction,TransactionTransfer
 
 def create_user(db: Session, user: UserCreate):
     db_user = Users(**user.dict())
@@ -63,6 +63,35 @@ def create_transaction(db: Session, user: Users, description: str, amount: float
     db.refresh(new_transaction)
     return new_transaction
 
+def transfer_transaction(db: Session, user: Users, recipient: Users, amount: float, description: str):
+    if user.balance < amount:
+        return {"error": "Insufficient funds"}
+    user.balance -= amount
+    recipient.balance += amount
+    transaction=TransactionTransfer(user_id=user.id, recipient_id=recipient.id, description=description, amount=amount)
+    new_transaction = Transactions(**transaction.dict())
+    new_transaction.transaction_type = "transfer"
+    new_transaction.user_id = user.id
+    new_transaction.recipient_id = recipient.id
+    db.add(new_transaction)
+    db.commit()
+    db.refresh(new_transaction)
+    receiver_transaction=new_transaction
+    receiver_transaction.user_id = recipient.id
+    receiver_transaction.transaction_type = "CREDIT"
+    db.add(receiver_transaction)
+    db.commit()
+    db.refresh(receiver_transaction) 
+    return {
+        "transfer_id": new_transaction.id,
+        "sender_transaction_id": user.id,
+        "recipient_transaction_id": recipient.id,
+        "amount": amount,
+        "sender_new_balance": user.balance,
+        "recipient_new_balance": recipient.balance,
+        "status": "completed"
+    }
+
 def fetch_transactions(db: Session, user_id: int):
     return db.query(Transactions).filter(Transactions.user_id == user_id).all()
 
@@ -88,19 +117,4 @@ def transfer_funds(db: Session, user: Users, recipient: Users, amount: float, de
             "current_balance": user.balance,
             "required_amount": amount
         }
-    user.balance -= amount
-    recipient.balance += amount
-    db.commit()
-    db.refresh(user)
-    db.refresh(recipient)
-    create_transaction(db, user, description, -amount)
-    new_transaction = create_transaction(db, recipient, description, amount)
-    return {
-        "transfer_id": new_transaction.id,
-        "sender_transaction_id": user.id,
-        "recipient_transaction_id": recipient.id,
-        "amount": amount,
-        "sender_new_balance": user.balance,
-        "recipient_new_balance": recipient.balance,
-        "status": "completed"
-    }
+    return transfer_transaction(db, user, recipient, amount, description)
